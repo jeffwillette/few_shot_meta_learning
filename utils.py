@@ -4,8 +4,44 @@ import numpy as np
 import os
 import sys
 
+from typing import Tuple
 import pickle
 from PIL import Image
+
+T = torch.Tensor
+
+
+def ece_yhat_only(n_bins: int, y: T, y_hat: T, device: torch.device) -> Tuple[T, ...]:
+    """vectorized version of expected calibration error (ECE) as outlined in https://arxiv.org/abs/1706.04599"""
+    with torch.no_grad():
+        # intervals and boundaries for the bin probabilities
+        interval = 1.0 / n_bins
+        bound = torch.linspace(0, 1 - interval, n_bins).to(device)
+        # y_hat = y_hat.softmax(dim=1) # yhat will already be softmaxxed here
+
+        y_hat_acc = y_hat.argmax(dim=1) == y    # the number of correct predictions
+        y_hat_conf, _ = y_hat.max(dim=1)        # the confidence of those predictions
+
+        bins_acc = y_hat_acc.repeat(n_bins, 1)      # repeat the predictions once for every bin
+        bins_conf = y_hat_conf.repeat(n_bins, 1)    # repeat the confidences once per every bin
+
+        # get a mask which only looks at the the valid confidences in each bin
+        mask_conf = (bins_conf.T <= bound + interval).T * (bins_conf.T > bound).T  # type: ignore
+
+        # apply the mask to zero out entries in the different bins
+        bins_acc = bins_acc * mask_conf
+        bins_conf = bins_conf * mask_conf
+
+        # get the average confidence and accuracy of each bin
+        conf = bins_conf.sum(dim=1) / ((bins_conf != 0).sum(dim=1) + 1e-10)
+        acc = bins_acc.float().sum(dim=1) / ((bins_conf != 0).sum(dim=1) + 1e-10)
+
+        # weight each bin by the number of samples in the bin
+        weights = (bins_conf != 0).sum(dim=1).float() / bins_conf.size(1)
+
+        # sum the weighted difference between each bins confidence and accuracy
+        return torch.sum(weights * torch.abs(conf - acc)), conf, acc
+
 
 def load_dataset(dataset_name, subset, dataset_root='../datasets/'):
     '''

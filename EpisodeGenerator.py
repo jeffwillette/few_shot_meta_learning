@@ -148,6 +148,7 @@ class OmniglotLoader(object):
 
         return x
 
+
 class ImageFolderGenerator(object):
     def __init__(
         self,

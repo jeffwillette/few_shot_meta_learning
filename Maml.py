@@ -12,9 +12,6 @@ class Maml(MLBaseClass):
     def __init__(self, config: dict) -> None:
         super().__init__(config=config)
 
-        if self.config['min_way'] != self.config['max_way']:
-            raise ValueError('MAML works with a fixed number of ways only.')
-        
         self.config['num_models'] = 1 # overwrite number of models for speed
 
         self.hyper_net_class = IdentityNet

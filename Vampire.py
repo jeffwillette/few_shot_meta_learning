@@ -11,9 +11,6 @@ class Vampire(MLBaseClass):
     def __init__(self, config: dict) -> None:
         super().__init__(config=config)
 
-        if self.config['min_way'] != self.config['max_way']:
-            raise ValueError('VAMPIRE works with a fixed number of ways only.')
-
         self.hyper_net_class = NormalVariationalNet
 
     def load_model(self, resume_epoch: int = None, **kwargs) -> typing.Tuple[torch.nn.Module, typing.Optional[higher.patch._MonkeyPatchBase], torch.optim.Optimizer]:

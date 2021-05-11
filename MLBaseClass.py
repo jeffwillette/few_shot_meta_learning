@@ -3,7 +3,10 @@ import torch
 import higher
 
 from torch.utils.tensorboard import SummaryWriter
+import torchvision
 
+from sklearn.metrics import roc_auc_score, roc_curve
+from sklearn.preprocessing import OneHotEncoder
 import numpy as np
 import typing
 import os
@@ -13,8 +16,9 @@ import sys
 import abc
 
 from EpisodeGenerator import OmniglotLoader, ImageFolderGenerator
-from CommonModels import CNN, ResNet18, MiniCNN
+from CommonModels import CNN, ResNet18, MiniCNN, ResNet12
 from _utils import train_val_split, get_episodes, IdentityNet
+from utils import ece_yhat_only
 
 # --------------------------------------------------
 # Default configuration
@@ -40,7 +44,7 @@ config['KL_weight'] = 1e-4
 
 # Task-related
 config['max_way'] = 5
-config['min_way'] = 5
+config['n_way'] = 5
 config['k_shot'] = 1
 config['v_shot'] = 15
 
@@ -141,6 +145,7 @@ class MLBaseClass(object):
             for epoch_id in range(self.config['resume_epoch'], self.config['resume_epoch'] + self.config['num_epochs'], 1):
                 loss_monitor = 0.
                 KL_monitor = 0.
+                correct, total = 0., 0.
                 for eps_count in range(self.config['num_episodes_per_epoch']):
                     # -------------------------
                     # get eps from the given csv file or just random (None)
@@ -150,16 +155,8 @@ class MLBaseClass(object):
                     # -------------------------
                     # episode data
                     # -------------------------
-                    eps_data = eps_generator.generate_episode(episode_name=eps_name)
-
-                    # split data into train and validation
-                    xt, yt, xv, yv = train_val_split(X=eps_data, k_shot=self.config['k_shot'], shuffle=True)
-
-                    # move data to GPU (if there is a GPU)
-                    x_t = torch.from_numpy(xt).float().to(self.config['device'])
-                    y_t = torch.tensor(yt, dtype=torch.long, device=self.config['device'])
-                    x_v = torch.from_numpy(xv).float().to(self.config['device'])
-                    y_v = torch.tensor(yv, dtype=torch.long, device=self.config['device'])
+                    x_t, y_t, x_v, y_v = eps_generator.generate_episode(episode_name=eps_name)
+                    x_t, y_t, x_v, y_v = x_t.cuda(), y_t.cuda(), x_v.cuda(), y_v.cuda()
 
                     # -------------------------
                     # adapt and predict the support data
@@ -170,11 +167,14 @@ class MLBaseClass(object):
                         loss_v_temp = torch.nn.functional.cross_entropy(input=logits_, target=y_v)
                         loss_v = loss_v + loss_v_temp
                     loss_v = loss_v / len(logits)
-                    loss_monitor += loss_v.item() # monitor validation loss
+                    loss_monitor += loss_v.item()  # monitor validation loss
+
+                    correct += (torch.stack(logits).mean(dim=0).argmax(dim=-1) == y_v).sum().item()
+                    total += y_v.numel()
 
                     # calculate KL divergence
                     KL_div = self.KL_divergence(model=model, f_hyper_net=f_hyper_net)
-                    KL_monitor += KL_div.item() if isinstance(KL_div, torch.Tensor) else KL_div # monitor KL divergence
+                    KL_monitor += KL_div.item() if isinstance(KL_div, torch.Tensor) else KL_div  # monitor KL divergence
 
                     # extra loss applicable for ABML only
                     loss_extra = self.loss_extra(model=model, f_hyper_net=f_hyper_net, x_t=x_t, y_t=y_t)
@@ -210,12 +210,15 @@ class MLBaseClass(object):
                             loss_monitor = 0.
                             KL_monitor = 0.
 
+                print(f"epoch {epoch_id} acc: {correct / total}")
                 # save model
                 checkpoint = {
                     'hyper_net_state_dict': model[0].state_dict(),
-                    'opt_state_dict': model[-1].state_dict()
+                    'opt_state_dict': model[-1].state_dict(),
+                    'epoch': epoch_id,
                 }
-                checkpoint_path = os.path.join(self.config['logdir'], 'Epoch_{0:d}.pt'.format(epoch_id + 1))
+
+                checkpoint_path = os.path.join(self.config['logdir'], 'run_{}.pt'.format(self.config['run']))
                 torch.save(obj=checkpoint, f=checkpoint_path)
                 print('State dictionaries are saved into {0:s}\n'.format(checkpoint_path))
 
@@ -234,39 +237,54 @@ class MLBaseClass(object):
         model = self.load_model(resume_epoch=self.config['resume_epoch'], hyper_net_class=self.hyper_net_class, eps_generator=eps_generator)
 
         # get list of episode names, each episode name consists of classes
-        eps = get_episodes(episode_file_path=self.config['episode_file'])
+        eps = get_episodes(episode_file_path=self.config['episode_file'], num_episodes=1000)
 
-        accuracies = [None] * len(eps)
-
+        ece, roc_auc, nll = 0., 0., 0.
+        correct, total = 0., 0.
         for i, eps_name in enumerate(eps):
-            eps_data = eps_generator.generate_episode(episode_name=eps_name)
+            x_t, y_t, x_v, y_v = eps_generator.generate_episode(episode_name=eps_name)
+            x_t, y_t, x_v, y_v = x_t.cuda(), y_t.cuda(), x_v.cuda(), y_v.cuda()
             # split data into train and validation
-            xt, yt, xv, yv = train_val_split(X=eps_data, k_shot=self.config['k_shot'], shuffle=True)
 
-            # move data to GPU (if there is a GPU)
-            x_t = torch.from_numpy(xt).float().to(self.config['device'])
-            y_t = torch.tensor(yt, dtype=torch.long, device=self.config['device'])
-            x_v = torch.from_numpy(xv).float().to(self.config['device'])
-            y_v = torch.tensor(yv, dtype=torch.long, device=self.config['device'])
+            # grid = torchvision.utils.make_grid(x_t, nrow=5)
+            # torchvision.utils.save_image(grid, f"train-{i}.png")
+
+            # grid = torchvision.utils.make_grid(x_v, nrow=90)
+            # torchvision.utils.save_image(grid, f"test-{i}.png")
+
+            # if i == 5:
+            #     exit()
 
             _, logits = self.adapt_and_predict(model=model, x_t=x_t, y_t=y_t, x_v=x_v, y_v=None)
-            
+
             # initialize y_prediction
-            y_pred = torch.zeros(size=(y_v.shape[0], len(eps_data)), dtype=torch.float, device=self.config['device'])
+            y_pred = torch.zeros((y_v.shape[0], self.config["n_way"]), device=x_v.device)
             for logits_ in logits:
                 y_pred += torch.softmax(input=logits_, dim=1)
             y_pred /= len(logits)
 
-            accuracies[i] = (y_pred.argmax(dim=1) == y_v).float().mean().item()
+            correct += (y_pred.argmax(dim=1) == y_v).sum()
+            total += y_v.numel()
+
+            e, _, _ = ece_yhat_only(100, y_v, y_pred, device=y_v.device)
+            ece += e
+
+            # yhot = OneHotEncoder(categories='auto').fit_transform(y_v.cpu().numpy().reshape(-1, 1)).toarray()
+            # roc_auc += roc_auc_score(yhot, y_pred.detach().cpu().numpy())
+
+            nll += np.take(y_pred.detach().cpu().numpy(), y_v.cpu().numpy(), axis=1).sum()
 
             sys.stdout.write('\033[F')
             print(i + 1)
 
-        acc_mean = np.mean(a=accuracies)
-        acc_std = np.std(a=accuracies)
-        print('\nAccuracy = {0:.2f} +/- {1:.2f}\n'.format(acc_mean * 100, 1.96 * acc_std / np.sqrt(len(accuracies)) * 100))
+        acc = correct/ total
+        ece = ece / (i + 1)
+        roc_auc = roc_auc / (i + 1)
+        nll = -np.log(nll) + np.log(i + 1)
+
+        print('\nAccuracy: {0:.2f}\nECE: {1:.2f}\nAUROC: {2:.2f}\nNLL: {3:.2f}'.format(acc * 100, ece, roc_auc, nll))
         return accuracies
-    
+
     # --------------------------------------------------
     # Auxilliary functions for MAML-like algorithms
     # --------------------------------------------------
@@ -376,27 +394,26 @@ class MLBaseClass(object):
 
         if self.config['network_architecture'] == 'CNN':
             base_net = CNN(
-                dim_output=self.config['min_way'],
+                dim_output=self.config['n_way'],
                 bn_affine=self.config['batchnorm']
             )
         elif self.config['network_architecture'] == 'ResNet18':
             base_net = ResNet18(
-                dim_output=self.config['min_way'],
+                dim_output=self.config['n_way'],
                 bn_affine=self.config['batchnorm']
             )
         elif self.config['network_architecture'] == 'MiniCNN':
-            base_net = MiniCNN(dim_output=self.config['min_way'], bn_affine=self.config['batchnorm'])
+            base_net = MiniCNN(dim_output=self.config['n_way'], bn_affine=self.config['batchnorm'])
+        elif self.config["network_architecture"] == "ResNet12":
+            base_net = ResNet12(dim_output=self.config['n_way'], bn_affine=self.config['batchnorm'])
         else:
             raise NotImplementedError('Network architecture is unknown. Please implement it in the CommonModels.py.')
 
         # ---------------------------------------------------------------
         # run a dummy task to initialize lazy modules defined in base_net
         # ---------------------------------------------------------------
-        eps_data = kwargs['eps_generator'].generate_episode(episode_name=None)
-        # split data into train and validation
-        xt, _, _, _ = train_val_split(X=eps_data, k_shot=self.config['k_shot'], shuffle=True)
-        # convert numpy data into torch tensor
-        x_t = torch.from_numpy(xt).float()
+        x_t, _, _, _ = kwargs['eps_generator'].generate_episode(episode_name=None)
+
         # run to initialize lazy modules
         base_net(x_t)
         params = torch.nn.utils.parameters_to_vector(parameters=base_net.parameters())
@@ -412,10 +429,10 @@ class MLBaseClass(object):
         meta_opt = torch.optim.Adam(params=hyper_net.parameters(), lr=self.config['meta_lr'])
 
         # load model if there is saved file
-        if resume_epoch > 0:
+        if resume_epoch > 0 or not self.config["train_flag"]:
             # path to the saved file
-            checkpoint_path = os.path.join(self.config['logdir'], 'Epoch_{0:d}.pt'.format(resume_epoch))
-            
+            checkpoint_path = os.path.join(self.config['logdir'], 'run_{}.pt'.format(self.config['run']))
+
             # load file
             saved_checkpoint = torch.load(
                 f=checkpoint_path,
