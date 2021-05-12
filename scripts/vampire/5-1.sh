@@ -1,6 +1,9 @@
+#!/bin/bash
+
 ROOT=$DATADIR
 GPUS=(2 2 2)
 DATASET="omniglot"
+VSHOT=15
 
 for RUN in 0 1 2
 do
@@ -10,11 +13,10 @@ do
     --ml-algorithm=vampire \
     --num-models=2 \
     --first-order \
-    --network-architecture=CNN \
     --no-batchnorm \
     --n-way=5 \
     --k-shot=1 \
-    --v-shot=15 \
+    --v-shot=$VSHOT \
     --num-epochs=40 \
     --num-episodes-per-epoch 10000 \
     --resume-epoch=0 \

@@ -1,8 +1,9 @@
+#!/bin/bash
+
 ROOT=$DATADIR
 GPUS=(5 5 5)
 DATASET="omniglot"
-VSHOT=1
-
+VSHOT=15
 
 for RUN in 0 1 2
 do
@@ -12,7 +13,6 @@ do
     --ml-algorithm=MAML \
     --num-models=1 \
     --first-order \
-    --network-architecture=CNN \
     --no-batchnorm \
     --n-way=5 \
     --k-shot=5 \

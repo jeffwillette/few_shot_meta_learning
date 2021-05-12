@@ -93,7 +93,8 @@ config = {}
 for key in args.__dict__:
     config[key] = args.__dict__[key]
 
-config['logdir'] = os.path.join(config['logdir'], 'meta_learning', config['ml_algorithm'].lower(), config['datasource'], config['network_architecture'])
+subdir = f"{config['n_way']}-{config['k_shot']}"
+config['logdir'] = os.path.join(config['logdir'], 'meta_learning', config['ml_algorithm'].lower(), config['datasource'], config['network_architecture'], subdir)
 if not os.path.exists(path=config['logdir']):
     from pathlib import Path
     Path(config['logdir']).mkdir(parents=True, exist_ok=True)
@@ -101,6 +102,7 @@ if not os.path.exists(path=config['logdir']):
 config['minibatch_print'] = np.lcm(config['minibatch'], 500)
 
 config['device'] = torch.device('cuda:0' if torch.cuda.is_available() else torch.device('cpu'))
+config['iters'] = 0
 
 if __name__ == "__main__":
     # task/episode generator

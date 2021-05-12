@@ -16,7 +16,8 @@ import sys
 import abc
 
 from EpisodeGenerator import OmniglotLoader, ImageFolderGenerator
-from CommonModels import CNN, ResNet18, MiniCNN, ResNet12
+from CommonModels import CNN, ResNet18, MiniCNN
+from resnet12 import ResNet12
 from _utils import train_val_split, get_episodes, IdentityNet
 from utils import ece_yhat_only
 
@@ -31,13 +32,13 @@ config['device'] = torch.device('cuda:0' if torch.cuda.is_available() \
 
 # Dataset
 config['datasource'] = 'omniglot-py'
-config['suffix'] = 'png' # extension of image file: png, jpg
+config['suffix'] = 'png'  # extension of image file: png, jpg
 config['image_size'] = (1, 64, 64)
-config['ds_folder'] = './datasets' # path to the folder containing the dataset
+config['ds_folder'] = './datasets'  # path to the folder containing the dataset
 config['load_images'] = True # load images on RAM for fast access. Set False for large dataset to avoid out-of-memory
 
 # Meta-learning method
-config['ml_algorithm'] = 'maml' # either: maml and vampire
+config['ml_algorithm'] = 'maml'  # either: maml and vampire
 config['first_order'] = True # applicable for MAML-like algorithms
 config['num_models'] = 1 # number of models used in Monte Carlo to approximate expectation
 config['KL_weight'] = 1e-4
@@ -63,7 +64,7 @@ config['resume_epoch'] = 0
 
 # Testing
 config['num_episodes'] = 100
-config['episode_file'] = None # path to a csv file with row as episode name and column as list of classes that form an episode
+config['episode_file'] = None  # path to a csv file with row as episode name and column as list of classes that form an episode
 
 # Log
 config['logdir'] = os.path.join('/media/n10/Data', 'meta_learning', config['ml_algorithm'], config['datasource'], config['network_architecture'])
@@ -186,6 +187,8 @@ class MLBaseClass(object):
                     # calculate gradients w.r.t. hyper_net's parameters
                     loss_v.backward()
 
+                    self.config['iters'] += 1
+
                     # update meta-parameters
                     if ((eps_count + 1) % self.config['minibatch'] == 0):
                         loss_prior = self.loss_prior(model=model)
@@ -216,6 +219,7 @@ class MLBaseClass(object):
                     'hyper_net_state_dict': model[0].state_dict(),
                     'opt_state_dict': model[-1].state_dict(),
                     'epoch': epoch_id,
+                    'iters': self.config['iters']
                 }
 
                 checkpoint_path = os.path.join(self.config['logdir'], 'run_{}.pt'.format(self.config['run']))
@@ -319,9 +323,9 @@ class MLBaseClass(object):
         hyper_net_params = [p for p in hyper_net.parameters()]
 
         for _ in range(self.config['num_inner_updates']):
-            grads_accum = [0] * len(hyper_net_params) # accumulate gradients of Monte Carlo sampling
+            grads_accum = [0] * len(hyper_net_params)  # accumulate gradients of Monte Carlo sampling
 
-            q_params = f_hyper_net.fast_params # parameters of the task-specific hyper_net
+            q_params = f_hyper_net.fast_params  # parameters of the task-specific hyper_net
 
             # KL divergence
             KL_div = self.KL_divergence(p=hyper_net_params, q=q_params)
@@ -339,6 +343,7 @@ class MLBaseClass(object):
                         inputs=q_params,
                         retain_graph=True
                     )
+                    # print(f"grads: {grads}")
                 else:
                     grads = torch.autograd.grad(
                         outputs=loss,
@@ -439,6 +444,8 @@ class MLBaseClass(object):
                 map_location=lambda storage,
                 loc: storage.cuda(self.config['device'].index) if self.config['device'].type == 'cuda' else storage
             )
+
+            self.config['iters'] = saved_checkpoint['iters']
 
             # load state dictionaries
             hyper_net.load_state_dict(state_dict=saved_checkpoint['hyper_net_state_dict'])
