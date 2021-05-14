@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ROOT=$DATADIR
-GPUS=(3 3 3)
+GPUS=(3 4 5)
 DATASET="omniglot"
 VSHOT=15
 
@@ -13,11 +13,12 @@ do
     --ml-algorithm=MAML \
     --num-models=1 \
     --no-batchnorm \
+    --minibatch 16 \
     --n-way=20 \
     --k-shot=5 \
     --v-shot=$VSHOT \
     --num-epochs=40 \
     --num-episodes-per-epoch 10000 \
     --resume-epoch=0 \
-    --train
+    --train &
 done

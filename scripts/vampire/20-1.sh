@@ -13,7 +13,7 @@ do
     --run $RUN \
     --ml-algorithm=vampire \
     --num-models=2 \
-    --first-order \
+    --minibatch 16 \
     --no-batchnorm \
     --n-way=20 \
     --k-shot=1 \

@@ -1,24 +1,22 @@
-from higher import patch
-import torch
-import higher
-
-from torch.utils.tensorboard import SummaryWriter
-import torchvision
-
-from sklearn.metrics import roc_auc_score, roc_curve
-from sklearn.preprocessing import OneHotEncoder
-import numpy as np
-import typing
+import abc
 import os
 import random
 import sys
+import typing
 
-import abc
+import higher
+import numpy as np
+import torch
+import torchvision
+from higher import patch
+from sklearn.metrics import roc_auc_score, roc_curve
+from sklearn.preprocessing import OneHotEncoder
+from torch.utils.tensorboard import SummaryWriter
 
-from EpisodeGenerator import OmniglotLoader, ImageFolderGenerator
-from CommonModels import CNN, ResNet18, MiniCNN
+from _utils import IdentityNet, get_episodes, train_val_split
 from cnn import CNN2
-from _utils import train_val_split, get_episodes, IdentityNet
+from CommonModels import CNN, MiniCNN, ResNet18
+from EpisodeGenerator import ImageFolderGenerator, OmniglotLoader
 from utils import ece_yhat_only
 
 # --------------------------------------------------
@@ -187,8 +185,8 @@ class MLBaseClass(object):
                     # calculate gradients w.r.t. hyper_net's parameters
                     loss_v.backward()
 
-                    sys.stdout.write('\033[F')
-                    print(f"correct: {(correct / total):.4f}")  # , " ll: ", -np.log(ll / (i + 1)))
+                    # sys.stdout.write('\033[F')
+                    # print(f"correct: {(correct / total):.4f}")  # , " ll: ", -np.log(ll / (i + 1)))
                     # print(loss_v.item())
 
                     self.config['iters'] += 1

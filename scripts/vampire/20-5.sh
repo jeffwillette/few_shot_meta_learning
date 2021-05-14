@@ -12,8 +12,8 @@ do
     --ds-folder $ROOT \
     --ml-algorithm=vampire \
     --num-models=2 \
-    --first-order \
     --no-batchnorm \
+    --minibatch 16 \
     --n-way=20 \
     --k-shot=5 \
     --v-shot=$VSHOT \

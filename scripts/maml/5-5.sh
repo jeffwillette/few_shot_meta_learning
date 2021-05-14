@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ROOT=$DATADIR
-GPUS=(5 5 5)
+GPUS=(7 7 7)
 DATASET="omniglot"
 VSHOT=15
 
