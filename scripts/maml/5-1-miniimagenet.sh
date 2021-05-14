@@ -10,7 +10,6 @@ CUDA_VISIBLE_DEVICES=0 PYTHONPATH=. python main.py \
     --ds-folder $ROOT \
     --ml-algorithm=MAML \
     --num-models=1 \
-    --first-order \
     --no-batchnorm \
     --n-way=5 \
     --k-shot=1 \

@@ -12,7 +12,6 @@ do
     --ds-folder $ROOT \
     --ml-algorithm=abml \
     --num-models=2 \
-    --first-order \
     --no-batchnorm \
     --n-way=5 \
     --k-shot=5 \

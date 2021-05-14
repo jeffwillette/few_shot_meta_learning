@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ROOT=$DATADIR
-GPUS=(3 3 3)
+GPUS=(0 0 0)
 DATASET="omniglot"
 VSHOT=15
 
@@ -12,7 +12,6 @@ do
     --ds-folder $ROOT \
     --ml-algorithm=MAML \
     --num-models=1 \
-    --first-order \
     --no-batchnorm \
     --n-way=20 \
     --k-shot=1 \

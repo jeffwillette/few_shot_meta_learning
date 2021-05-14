@@ -279,13 +279,9 @@ class MLBaseClass(object):
             e, _, _ = ece_yhat_only(100, y_v, y_pred, device=y_v.device)
             ece += e
 
-            # yhot = OneHotEncoder(categories='auto').fit_transform(y_v.cpu().numpy().reshape(-1, 1)).toarray()
-            # roc_auc += roc_auc_score(yhot, y_pred.detach().cpu().numpy())
+            yhot = OneHotEncoder(categories='auto').fit_transform(y_v.cpu().numpy().reshape(-1, 1)).toarray()
+            roc_auc += roc_auc_score(yhot, y_pred.detach().cpu().numpy(), multi_class="ovr")
 
-            # print(f"y pred: {y_pred}")
-            # print(f"y_v: {y_v}")
-            # print(y_pred[torch.arange(y_v.size(0)), y_v].detach().cpu().numpy())
-            # exit()
             ll += y_pred[torch.arange(y_v.size(0)), y_v].detach().cpu().sum()
 
             sys.stdout.write('\033[F')
