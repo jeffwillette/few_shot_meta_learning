@@ -62,6 +62,7 @@ class FcNet(torch.nn.Module):
         """"""
         return self.fc_net(x)
 
+
 class CNN(torch.nn.Module):
     """A simple convolutional module networks
     """
@@ -83,7 +84,7 @@ class CNN(torch.nn.Module):
         self.num_channels = (64, 64, 64, 64)
         self.bn_affine = bn_affine
         self.cnn = self.construct_network()
-    
+
     def construct_network(self) -> torch.nn.Module:
         """Construct the network
 

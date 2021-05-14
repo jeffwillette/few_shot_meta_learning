@@ -208,7 +208,6 @@ class OmniglotCorruptTest(NumpyDataset):
             qry_x[(i * self.test_shots) : ((i + 1) * self.test_shots)] = te
             qry_y[(i * self.test_shots) : ((i + 1) * self.test_shots)] = i
 
-        qry_x, qry_y = qry_x[:1], qry_y[:1]
         return 1 - (spt_x / 255.0), spt_y.long(), 1 - (qry_x / 255.0), qry_y.long()
 
 

@@ -49,7 +49,7 @@ parser.add_argument('--no-first-order', dest='first_order', action='store_false'
 parser.set_defaults(first_order=True)
 parser.add_argument('--KL-weight', type=float, default=1e-6, help='Weighting factor for the KL divergence (only applicable for VAMPIRE)')
 
-parser.add_argument('--network-architecture', type=str, default='ResNet12', help='The base model used, including CNN and ResNet18 defined in CommonModels')
+parser.add_argument('--network-architecture', type=str, default='CNN2', help='The base model used, including CNN and ResNet18 defined in CommonModels')
 
 # Including learnable BatchNorm in the model or not learnable BN
 parser.add_argument('--batchnorm', dest='batchnorm', action='store_true')

@@ -17,7 +17,7 @@ import abc
 
 from EpisodeGenerator import OmniglotLoader, ImageFolderGenerator
 from CommonModels import CNN, ResNet18, MiniCNN
-from resnet12 import ResNet12
+from cnn import CNN2
 from _utils import train_val_split, get_episodes, IdentityNet
 from utils import ece_yhat_only
 
@@ -187,6 +187,10 @@ class MLBaseClass(object):
                     # calculate gradients w.r.t. hyper_net's parameters
                     loss_v.backward()
 
+                    sys.stdout.write('\033[F')
+                    print(f"correct: {(correct / total):.4f}")  # , " ll: ", -np.log(ll / (i + 1)))
+                    # print(loss_v.item())
+
                     self.config['iters'] += 1
 
                     # update meta-parameters
@@ -194,6 +198,7 @@ class MLBaseClass(object):
                         loss_prior = self.loss_prior(model=model)
                         if hasattr(loss_prior, 'requires_grad'):
                             loss_prior.backward()
+
 
                         model[-1].step()
                         model[-1].zero_grad()
@@ -243,7 +248,7 @@ class MLBaseClass(object):
         # get list of episode names, each episode name consists of classes
         eps = get_episodes(episode_file_path=self.config['episode_file'], num_episodes=1000)
 
-        ece, roc_auc, nll = 0., 0., 0.
+        ece, roc_auc, ll = 0., 0., 0.
         correct, total = 0., 0.
         for i, eps_name in enumerate(eps):
             x_t, y_t, x_v, y_v = eps_generator.generate_episode(episode_name=eps_name)
@@ -259,6 +264,7 @@ class MLBaseClass(object):
             # if i == 5:
             #     exit()
 
+            print(x_v.size())
             _, logits = self.adapt_and_predict(model=model, x_t=x_t, y_t=y_t, x_v=x_v, y_v=None)
 
             # initialize y_prediction
@@ -276,15 +282,19 @@ class MLBaseClass(object):
             # yhot = OneHotEncoder(categories='auto').fit_transform(y_v.cpu().numpy().reshape(-1, 1)).toarray()
             # roc_auc += roc_auc_score(yhot, y_pred.detach().cpu().numpy())
 
-            nll += np.take(y_pred.detach().cpu().numpy(), y_v.cpu().numpy(), axis=1).sum()
+            # print(f"y pred: {y_pred}")
+            # print(f"y_v: {y_v}")
+            # print(y_pred[torch.arange(y_v.size(0)), y_v].detach().cpu().numpy())
+            # exit()
+            ll += y_pred[torch.arange(y_v.size(0)), y_v].detach().cpu().sum()
 
             sys.stdout.write('\033[F')
-            print(i + 1)
+            print(i + 1) # , " ll: ", -np.log(ll / (i + 1)))
 
         acc = correct/ total
         ece = ece / (i + 1)
         roc_auc = roc_auc / (i + 1)
-        nll = -np.log(nll) + np.log(i + 1)
+        nll = -np.log(ll / (i + 1))
 
         print('\nAccuracy: {0:.2f}\nECE: {1:.2f}\nAUROC: {2:.2f}\nNLL: {3:.2f}'.format(acc * 100, ece, roc_auc, nll))
         return accuracies
@@ -402,6 +412,9 @@ class MLBaseClass(object):
                 dim_output=self.config['n_way'],
                 bn_affine=self.config['batchnorm']
             )
+        elif self.config['network_architecture'] == 'CNN2':
+            in_dim = 1 if "omniglot" in self.config["datasource"] else 3
+            base_net = CNN2(in_dim)
         elif self.config['network_architecture'] == 'ResNet18':
             base_net = ResNet18(
                 dim_output=self.config['n_way'],

@@ -18,7 +18,7 @@ do
     --k-shot=1 \
     --v-shot=$VSHOT \
     --num-epochs=40 \
-    --num-episodes-per-epoch 100 \
+    --num-episodes-per-epoch 10000 \
     --resume-epoch=0 \
     --train
 done
