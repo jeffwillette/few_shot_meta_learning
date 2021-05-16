@@ -1,11 +1,13 @@
-import torch
-import higher
-import typing
 import os
+import typing
 
-from MLBaseClass import MLBaseClass
-from _utils import kl_divergence_gaussians, NormalVariationalNet
+import higher
+import torch
+
+from _utils import NormalVariationalNet, kl_divergence_gaussians
 from CommonModels import CNN, ResNet18
+from MLBaseClass import MLBaseClass
+
 
 class Abml(MLBaseClass):
     def __init__(self, config: dict) -> None:
@@ -56,6 +58,13 @@ class Abml(MLBaseClass):
         for logits_ in logits:
             loss_temp = torch.nn.functional.cross_entropy(input=logits_, target=kwargs['y_t'])
             loss = loss + loss_temp
+
+            if torch.isnan(loss_temp) or torch.isinf(loss_temp):
+                print("got NaN")
+                print(f"logits: {logits_}, yt: {kwargs['y_t']}")
+                print(f"logits: {logits_.min()} {logits_.max()}")
+                print(f"loss: {loss_temp}")
+
         loss = loss / len(logits)
 
         return loss
@@ -68,7 +77,11 @@ class Abml(MLBaseClass):
         hyper_net_params = [p for p in model[0].parameters()]
         for i, param in enumerate(hyper_net_params):
             if i < (len(hyper_net_params) // 2):
-                regularization = regularization - self.normal_prior.log_prob(value=param).sum()
+                try:
+                    regularization = regularization - self.normal_prior.log_prob(value=param).sum()
+                except:
+                    print(param)
+                    print(torch.any(torch.isnan(param)), torch.any(torch.isinf(param)))
             else:
                 tau = torch.exp(-2 * param)
                 regularization = regularization - self.gamma_prior.log_prob(value=tau).sum()

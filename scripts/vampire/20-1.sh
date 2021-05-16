@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ROOT=$DATADIR
-GPUS=(0 0 0)
+GPUS=(0 1 2)
 DATASET="omniglot"
 VSHOT=15
 
@@ -21,5 +21,5 @@ do
     --num-epochs=40 \
     --num-episodes-per-epoch 10000 \
     --resume-epoch=0 \
-    --test
+    --train &
 done

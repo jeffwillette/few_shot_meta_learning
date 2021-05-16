@@ -142,6 +142,7 @@ class MLBaseClass(object):
 
         try:
             for epoch_id in range(self.config['resume_epoch'], self.config['resume_epoch'] + self.config['num_epochs'], 1):
+                print(f"Starting epoch: {epoch_id}")
                 loss_monitor = 0.
                 KL_monitor = 0.
                 correct, total = 0., 0.
@@ -187,7 +188,6 @@ class MLBaseClass(object):
 
                     # sys.stdout.write('\033[F')
                     # print(f"correct: {(correct / total):.4f}")  # , " ll: ", -np.log(ll / (i + 1)))
-                    # print(loss_v.item())
 
                     self.config['iters'] += 1
 
@@ -416,8 +416,6 @@ class MLBaseClass(object):
             )
         elif self.config['network_architecture'] == 'MiniCNN':
             base_net = MiniCNN(dim_output=self.config['n_way'], bn_affine=self.config['batchnorm'])
-        elif self.config["network_architecture"] == "ResNet12":
-            base_net = ResNet12(dim_output=self.config['n_way'], bn_affine=self.config['batchnorm'])
         else:
             raise NotImplementedError('Network architecture is unknown. Please implement it in the CommonModels.py.')
 
@@ -453,6 +451,8 @@ class MLBaseClass(object):
             )
 
             self.config['iters'] = saved_checkpoint['iters']
+            self.config['resume_epoch'] = saved_checkpoint['epoch']
+            print(f"Resuming from epoch: {self.config['resume_epoch']} iter: {self.config['iters']}")
 
             # load state dictionaries
             hyper_net.load_state_dict(state_dict=saved_checkpoint['hyper_net_state_dict'])

@@ -1,15 +1,16 @@
 #!/bin/bash
 
 ROOT=$DATADIR
-GPUS=(4 4 4)
+GPUS=(7 7 7)
 DATASET="omniglot"
 VSHOT=15
 
-for RUN in 0 1 2
+for RUN in 0
 do
   CUDA_VISIBLE_DEVICES=${GPUS[RUN]} PYTHONPATH=. python main.py \
     --datasource=$DATASET \
     --ds-folder $ROOT \
+    --run $RUN \
     --ml-algorithm=abml \
     --num-models=2 \
     --minibatch 16 \
@@ -19,6 +20,6 @@ do
     --v-shot=$VSHOT \
     --num-epochs=40 \
     --num-episodes-per-epoch 10000 \
-    --resume-epoch=0 \
+    --resume-epoch=1 \
     --train
 done

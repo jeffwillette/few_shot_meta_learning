@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ROOT=$DATADIR
-GPUS=(2 2 2)
+GPUS=(7 7 7)
 DATASET="omniglot"
 VSHOT=15
 
@@ -10,6 +10,7 @@ do
   CUDA_VISIBLE_DEVICES=${GPUS[RUN]} PYTHONPATH=. python main.py \
     --datasource=$DATASET \
     --ds-folder $ROOT \
+    --run $RUN \
     --ml-algorithm=vampire \
     --num-models=2 \
     --no-batchnorm \

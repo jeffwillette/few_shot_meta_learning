@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ROOT=$DATADIR
-GPUS=(1 1 1)
+GPUS=(3 4 5)
 DATASET="omniglot"
 VSHOT=15
 
@@ -10,6 +10,7 @@ do
   CUDA_VISIBLE_DEVICES=${GPUS[RUN]} PYTHONPATH=. python main.py \
     --datasource=$DATASET \
     --ds-folder $ROOT \
+    --run $RUN \
     --ml-algorithm=vampire \
     --num-models=2 \
     --no-batchnorm \
@@ -20,5 +21,5 @@ do
     --num-epochs=40 \
     --num-episodes-per-epoch 10000 \
     --resume-epoch=0 \
-    --train
+    --train &
 done

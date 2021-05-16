@@ -10,6 +10,7 @@ do
   CUDA_VISIBLE_DEVICES=${GPUS[RUN]} PYTHONPATH=. python main.py \
     --datasource=$DATASET \
     --ds-folder $ROOT \
+    --run $RUN \
     --ml-algorithm=MAML \
     --num-models=1 \
     --no-batchnorm \

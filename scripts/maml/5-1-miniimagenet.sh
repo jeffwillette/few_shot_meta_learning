@@ -8,6 +8,7 @@ VSHOT=15
 CUDA_VISIBLE_DEVICES=0 PYTHONPATH=. python main.py \
     --datasource=$DATASET \
     --ds-folder $ROOT \
+    --run $RUN \
     --ml-algorithm=MAML \
     --num-models=1 \
     --minibatch 4 \
