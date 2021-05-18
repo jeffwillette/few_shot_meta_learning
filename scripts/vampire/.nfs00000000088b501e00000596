@@ -1,21 +1,22 @@
 #!/bin/bash
 
 ROOT=$DATADIR
-GPUS=(0 0 0)
+GPUS=(7 7 7)
 DATASET="omniglot"
 VSHOT=15
 
-for RUN in 2
+for RUN in 0
 do
   CUDA_VISIBLE_DEVICES=${GPUS[RUN]} PYTHONPATH=. python main.py \
     --datasource=$DATASET \
     --ds-folder $ROOT \
     --run $RUN \
-    --ml-algorithm=MAML \
-    --num-models=1 \
+    --ml-algorithm=vampire \
+    --num-models=2 \
     --no-batchnorm \
-    --n-way=5 \
-    --k-shot=1 \
+    --minibatch 16 \
+    --n-way=20 \
+    --k-shot=5 \
     --v-shot=$VSHOT \
     --num-epochs=40 \
     --num-episodes-per-epoch 10000 \

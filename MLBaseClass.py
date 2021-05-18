@@ -161,7 +161,9 @@ class MLBaseClass(object):
                     # -------------------------
                     # adapt and predict the support data
                     # -------------------------
+
                     f_hyper_net, logits = self.adapt_and_predict(model=model, x_t=x_t, y_t=y_t, x_v=x_v, y_v=y_v)
+
                     loss_v = 0.
                     for logits_ in logits:
                         loss_v_temp = torch.nn.functional.cross_entropy(input=logits_, target=y_v)
@@ -196,7 +198,6 @@ class MLBaseClass(object):
                         loss_prior = self.loss_prior(model=model)
                         if hasattr(loss_prior, 'requires_grad'):
                             loss_prior.backward()
-
 
                         model[-1].step()
                         model[-1].zero_grad()
@@ -236,7 +237,7 @@ class MLBaseClass(object):
 
         return None
 
-    def evaluate(self, eps_generator: typing.Union[OmniglotLoader, ImageFolderGenerator]) -> typing.List[float]:
+    def evaluate(self, eps_generator: typing.Union[OmniglotLoader, ImageFolderGenerator]) -> None:
         """Evaluate the performance
         """
         print('Evaluation is started.\n')
@@ -262,7 +263,7 @@ class MLBaseClass(object):
             # if i == 5:
             #     exit()
 
-            print(x_v.size())
+            # print(x_v.size())
             _, logits = self.adapt_and_predict(model=model, x_t=x_t, y_t=y_t, x_v=x_v, y_v=None)
 
             # initialize y_prediction
@@ -270,6 +271,7 @@ class MLBaseClass(object):
             for logits_ in logits:
                 y_pred += torch.softmax(input=logits_, dim=1)
             y_pred /= len(logits)
+            # exit()
 
             correct += (y_pred.argmax(dim=1) == y_v).sum()
             total += y_v.numel()
@@ -283,15 +285,28 @@ class MLBaseClass(object):
             ll += y_pred[torch.arange(y_v.size(0)), y_v].detach().cpu().sum()
 
             sys.stdout.write('\033[F')
-            print(i + 1) # , " ll: ", -np.log(ll / (i + 1)))
+            print(i + 1)  # , " ll: ", -np.log(ll / (i + 1)))
 
-        acc = correct/ total
+        acc = correct / total
         ece = ece / (i + 1)
         roc_auc = roc_auc / (i + 1)
-        nll = -np.log(ll / (i + 1))
+        nll = -np.log(ll) + np.log(total)
+
+        files = ["{}_acc_{}.txt", "{}_ece_{}.txt", "{}_auroc_{}.txt", "{}_nll_{}.txt"]
+        metrics = [acc, ece, roc_auc, nll]
+        for fl, mtrc in zip(files, metrics):
+            if self.config["corrupt"]:
+                extra = "corrupt"
+            elif self.config["ood_test"]:
+                extra = "oodtest"
+            else:
+                extra = "plain"
+
+            path = os.path.join(self.config['logdir'], fl.format(extra, self.config['run']))
+            with open(path, "a+") as f:
+                f.write("{}\n".format(mtrc))
 
         print('\nAccuracy: {0:.2f}\nECE: {1:.2f}\nAUROC: {2:.2f}\nNLL: {3:.2f}'.format(acc * 100, ece, roc_auc, nll))
-        return accuracies
 
     # --------------------------------------------------
     # Auxilliary functions for MAML-like algorithms
@@ -305,7 +320,7 @@ class MLBaseClass(object):
         f_net._fast_params = [[]]
 
         return f_net
-    
+
     def adapt_to_episode(self, x: torch.Tensor, y: torch.Tensor, hyper_net: torch.nn.Module, f_base_net: higher.patch._MonkeyPatchBase, train_flag: bool = True) -> higher.patch._MonkeyPatchBase:
         """Inner-loop for MAML-like algorithm
 
@@ -334,9 +349,11 @@ class MLBaseClass(object):
             # KL divergence
             KL_div = self.KL_divergence(p=hyper_net_params, q=q_params)
 
-            for _ in range(self.config['num_models']):
+            for i in range(self.config['num_models']):
                 base_net_params = f_hyper_net.forward()
+
                 y_logits = f_base_net.forward(x, params=base_net_params)
+
                 cls_loss = torch.nn.functional.cross_entropy(input=y_logits, target=y)
 
                 loss = cls_loss + self.config['KL_weight'] * KL_div
@@ -408,7 +425,7 @@ class MLBaseClass(object):
             )
         elif self.config['network_architecture'] == 'CNN2':
             in_dim = 1 if "omniglot" in self.config["datasource"] else 3
-            base_net = CNN2(in_dim)
+            base_net = CNN2(in_dim, out_dim=self.config["n_way"])
         elif self.config['network_architecture'] == 'ResNet18':
             base_net = ResNet18(
                 dim_output=self.config['n_way'],

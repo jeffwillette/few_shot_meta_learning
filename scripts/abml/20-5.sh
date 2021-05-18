@@ -1,11 +1,11 @@
 #!/bin/bash
 
 ROOT=$DATADIR
-GPUS=(7 7 7)
+GPUS=(3 4 5)
 DATASET="omniglot"
 VSHOT=15
 
-for RUN in 0
+for RUN in 0 1 2
 do
   CUDA_VISIBLE_DEVICES=${GPUS[RUN]} PYTHONPATH=. python main.py \
     --datasource=$DATASET \
@@ -20,6 +20,6 @@ do
     --v-shot=$VSHOT \
     --num-epochs=40 \
     --num-episodes-per-epoch 10000 \
-    --resume-epoch=1 \
-    --train
+    --resume-epoch=0 \
+    --train &
 done

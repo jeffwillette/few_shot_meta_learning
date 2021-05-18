@@ -1,10 +1,12 @@
-import torch
-import random
-import os
 import csv
 import itertools
+import os
+import random
 import typing
+
 import numpy as np
+import torch
+
 
 def list_dir(root: str, prefix: bool = False) -> typing.List[str]:
     """List all directories at a given root
@@ -238,5 +240,6 @@ class NormalVariationalNet(torch.nn.Module):
         for m, log_s in zip(self.mean, self.log_std):
             eps_normal = torch.randn_like(m, device=m.device)
             temp = m + eps_normal * torch.exp(input=log_s)
+
             out.append(temp)
         return out

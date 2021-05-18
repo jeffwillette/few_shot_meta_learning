@@ -19,18 +19,21 @@ python3 main.py --datasource=omniglot-py --suffix=png --load-images --ml-algorit
 
 python3 main.py --datasource=miniImageNet --suffix=jpg --load-images --ml-algorithm=protonet --network-architecture=CNN --no-batchnorm --min-way=5 --max-way=10 --num-epochs=100 --resume-epoch=0 --train
 """
-import torch
-import numpy as np
-import os
 import argparse
+import os
+from typing import Any
 
+import numpy as np
+import torch
+
+from Abml import Abml
+from data import (MiniImageNet, MiniImageNetCorruptTest, Omniglot,
+                  OmniglotCorruptTest)
 # from MetaLearning import MetaLearning
 from Maml import Maml
-from typing import Any
-from Vampire import Vampire
-from Abml import Abml
 from ProtoNet import ProtoNet
-from data import Omniglot, MiniImageNet, OmniglotCorruptTest, MiniImageNetCorruptTest
+from Vampire import Vampire
+
 # --------------------------------------------------
 # SETUP INPUT PARSER
 # --------------------------------------------------
@@ -85,6 +88,7 @@ parser.add_argument('--episode-file', type=str, default=None, help='Path to csv 
 
 parser.add_argument('--run', type=int, default=0, help='the run number to append to the paths')
 parser.add_argument('--corrupt', action="store_true", help='whetehr or not to run the corrupted test set')
+parser.add_argument('--ood-test', action="store_true", help="ood test classes in the standard set")
 
 args = parser.parse_args()
 print()
@@ -126,7 +130,7 @@ if __name__ == "__main__":
         n_way=config['n_way'],
         k_shot=config['k_shot'],
         test_shots=config['v_shot'],
-        # ood_test=True,
+        ood_test=config['ood_test'],
     )
 
     ml_algorithms = {

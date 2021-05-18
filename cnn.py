@@ -1,10 +1,10 @@
-import torch
-from torch import Tensor
-import torch.nn as nn
-from torch.nn import functional as F
-from torch.nn.functional import normalize
 from typing import Any
 
+import torch
+import torch.nn as nn
+from torch import Tensor
+from torch.nn import functional as F
+from torch.nn.functional import normalize
 
 T = torch.Tensor
 
@@ -18,10 +18,11 @@ class WrappedSpectral(nn.Module):
         self.dim = dim
         self.eps = eps
         self.weight_name = weight_name
+        self.ctype = ctype
 
         self.c: T
         if ctype == "none":
-            self.register_buffer("c", torch.tensor(0.0, requires_grad=False))
+            self.register_buffer("c", torch.tensor(1.0, requires_grad=False))
         elif ctype == "scalar":
             self.c = nn.Parameter(torch.tensor(0.0), requires_grad=True)
         elif ctype == "vector" and isinstance(base_layer, nn.Conv2d):
@@ -116,7 +117,7 @@ class WrappedSpectral(nn.Module):
         sigma = torch.dot(u, torch.mv(weight_mat, v))
 
         weight = (weight / sigma)
-        weight = weight * (0.01 + 0.99 * F.softplus(self.c))
+        weight = weight * ((0.01 + 0.99 * F.softplus(self.c)) if self.ctype != "none" else self.c)
 
         setattr(self.base_layer, self.weight_name, weight)
 
@@ -189,18 +190,26 @@ class ResidualSpectralCNN(nn.Module):
 
 
 class CNN2(nn.Module):
-    def __init__(self, in_ch: int, filters: int = 64) -> None:
+    def __init__(self, in_ch: int, out_dim: int, filters: int = 64) -> None:
         super().__init__()
+
+        self.in_ch = in_ch
+        self.out_dim = out_dim
+
         lyrs = []
         for i in range(4):
             lyrs.append(ConvResidual(in_ch if i == 0 else filters, filters=filters, stride=1))
 
         self.layers = nn.ModuleList(lyrs)
+        self.clf = torch.nn.LazyLinear(out_features=out_dim)
 
     def forward(self, x: T) -> T:
         for lyr in self.layers:
             x = lyr(x)
-        return x.view(x.size(0), -1)
+
+        x = x.view(x.size(0), -1)
+        x = self.clf(x)
+        return x
 
 
 if __name__ == "__main__":

@@ -1,12 +1,12 @@
 #!/bin/bash
 
 ROOT=$DATADIR
-GPUS=(0 1 2)
+GPUS=(6 7)
 DATASET="omniglot"
 VSHOT=15
 
 
-for RUN in 0 1 2
+for RUN in 0 1
 do
   CUDA_VISIBLE_DEVICES=${GPUS[RUN]} PYTHONPATH=. python main.py \
     --datasource=$DATASET \
